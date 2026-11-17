@@ -3,23 +3,22 @@ const SUPABASE_URL = 'https://ajipmwgodfgnjiswhgbq.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaXBtd2dvZGZnbmppc3doZ2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ5Mjg3OTQsImV4cCI6MjExMDUwNDc5NH0.RgIG2msQVR-w5LGQFZ4BxDOuzjJoaQ3VHwF2JmEFAZQ';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
+// ==================== ЛОКАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
 const DB_NAME = 'music_quiz_idb';
 const DB_VERSION = 1;
-const STORE_SONGS = 'songs';
-const STORE_META = 'meta';
+const STORE_META = 'meta'; // Храним только сессию, команды и игру
 
 let idb = null;
 let db = { songs: [], session: null, teams: {}, game: null };
 let currentUser = null;
 
-// ==================== INDEXEDDB ОБЁРТКА ====================
+// ==================== INDEXEDDB (ТОЛЬКО ДЛЯ МЕТАДАННЫХ) ====================
 function openIDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = (e) => {
       const d = e.target.result;
-      if (!d.objectStoreNames.contains(STORE_SONGS)) d.createObjectStore(STORE_SONGS, { keyPath: 'id' });
+      // Оставляем только метаданные, песни теперь в Supabase
       if (!d.objectStoreNames.contains(STORE_META)) d.createObjectStore(STORE_META, { keyPath: 'key' });
     };
     req.onsuccess = () => { idb = req.result; resolve(); };
@@ -27,20 +26,31 @@ function openIDB() {
   });
 }
 
-function idbGetAll(store) { return new Promise((res, rej) => { const r = idb.transaction(store, 'readonly').objectStore(store).getAll(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
-function idbPut(store, val) { return new Promise((res, rej) => { const r = idb.transaction(store, 'readwrite').objectStore(store).put(val); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); }
-function idbDelete(store, key) { return new Promise((res, rej) => { const r = idb.transaction(store, 'readwrite').objectStore(store).delete(key); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); }
 function idbGetMeta(key) { return new Promise((res, rej) => { const r = idb.transaction(STORE_META, 'readonly').objectStore(STORE_META).get(key); r.onsuccess = () => res(r.result ? r.result.value : null); r.onerror = () => rej(r.error); }); }
-function idbSetMeta(key, value) { return idbPut(STORE_META, { key, value }); }
+function idbSetMeta(key, value) { return new Promise((res, rej) => { const r = idb.transaction(STORE_META, 'readwrite').objectStore(STORE_META).put({ key, value }); r.onsuccess = () => res(); r.onerror = () => rej(r.error); }); }
 
+// ==================== ИНИЦИАЛИЗАЦИЯ ====================
 async function initApp() {
   await openIDB();
-  db.songs = await idbGetAll(STORE_SONGS);
   db.session = await idbGetMeta('session');
   db.teams = (await idbGetMeta('teams')) || {};
   db.game = await idbGetMeta('game');
+  
+  // Загружаем песни из Supabase
+  await loadSongsFromSupabase();
+  
   currentUser = db.session;
   route();
+}
+
+async function loadSongsFromSupabase() {
+  const { data, error } = await supabaseClient.from('songs').select('*').order('created_at', { ascending: true });
+  if (error) { 
+    console.error('Ошибка загрузки песен:', error); 
+    return; 
+  }
+  // Песни теперь хранят file_url, а не blob
+  db.songs = data;
 }
 
 async function saveSession() { await idbSetMeta('session', currentUser); }
@@ -49,19 +59,20 @@ async function saveGame() { await idbSetMeta('game', db.game); }
 
 // ==================== УПРАВЛЕНИЕ АУДИО ====================
 let currentAudio = null;
-let currentAudioUrl = null;
 
 function stopCurrentAudio() {
-  if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; currentAudio = null; }
-  if (currentAudioUrl) { URL.revokeObjectURL(currentAudioUrl); currentAudioUrl = null; }
+  if (currentAudio) { 
+    currentAudio.pause(); 
+    currentAudio.currentTime = 0; 
+    currentAudio = null; 
+  }
   const ind = document.getElementById('game-audio-indicator');
   if (ind) ind.classList.remove('playing');
 }
 
-function playAudioBlob(blob, onEnded) {
+function playAudioUrl(url, onEnded) {
   stopCurrentAudio();
-  currentAudioUrl = URL.createObjectURL(blob);
-  currentAudio = new Audio(currentAudioUrl);
+  currentAudio = new Audio(url);
   const ind = document.getElementById('game-audio-indicator');
   if (ind) ind.classList.add('playing');
   if (onEnded) currentAudio.onended = onEnded;
@@ -69,7 +80,11 @@ function playAudioBlob(blob, onEnded) {
 }
 
 // ==================== НАВИГАЦИЯ И ВХОД ====================
-function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function showScreen(id) { 
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); 
+  document.getElementById(id).classList.add('active'); 
+}
+
 function route() {
   if (!currentUser) return showScreen('screen-login');
   if (currentUser.role === 'admin') { showScreen('screen-admin'); renderAdmin(); }
@@ -246,6 +261,8 @@ async function saveClip() {
   const title = document.getElementById('song-title').value.trim();
   const artist = document.getElementById('song-artist').value.trim();
   if (!title || !artist) return alert('Введите название и исполнителя');
+  
+  // Проверка лимита (по локальному массиву)
   if (db.songs.filter(s => s.owner === currentUser.name).length >= 5) return alert('Максимум 5 песен');
 
   const btn = document.getElementById('btn-save-song');
@@ -256,18 +273,42 @@ async function saveClip() {
     const start = parseFloat(document.getElementById('start-range').value);
     const clipBuf = getClipBuffer(start);
     const blob = await encodeToCompressed(clipBuf);
-    const song = { id: Date.now() + '_' + Math.random().toString(36).slice(2, 7), owner: currentUser.name, title, artist, blob };
-    await idbPut(STORE_SONGS, song);
-    db.songs.push(song);
+
+    // 1. Загрузка в Supabase Storage
+    const fileName = `${currentUser.name.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.webm`;
+    const { error: upErr } = await supabaseClient.storage
+      .from('songs')
+      .upload(fileName, blob, { contentType: blob.type });
+
+    if (upErr) throw upErr;
+
+    // 2. Получение публичной ссылки
+    const { data: urlData } = supabaseClient.storage.from('songs').getPublicUrl(fileName);
+    const publicUrl = urlData.publicUrl;
+
+    // 3. Сохранение в БД
+    const { error: dbErr } = await supabaseClient.rpc('add_song', {
+      p_owner: currentUser.name,
+      p_title: title,
+      p_artist: artist,
+      p_file_url: publicUrl
+    });
+
+    if (dbErr) throw dbErr;
+
+    // 4. Обновление списка
+    await loadSongsFromSupabase();
+    
     audioBuffer = null;
     document.getElementById('file-input').value = '';
     document.getElementById('song-title').value = '';
     document.getElementById('song-artist').value = '';
     document.getElementById('editor').classList.add('hidden');
     renderUser();
+    alert('Песня сохранена!');
   } catch (err) {
     console.error(err);
-    alert('Ошибка сохранения');
+    alert('Ошибка сохранения: ' + err.message);
   } finally {
     btn.disabled = false;
     document.getElementById('global-loader').classList.add('hidden');
@@ -276,7 +317,6 @@ async function saveClip() {
 
 // ==================== ПЛЕЙЛИСТ УЧАСТНИКА ====================
 let inlineAudio = null;
-let inlineAudioUrl = null;
 let inlinePlayingId = null;
 
 async function togglePlay(id) {
@@ -286,15 +326,12 @@ async function togglePlay(id) {
     renderUser();
     return;
   }
-  if (inlineAudio) {
-    inlineAudio.pause();
-    if (inlineAudioUrl) URL.revokeObjectURL(inlineAudioUrl);
-  }
+  if (inlineAudio) inlineAudio.pause();
+
   const song = db.songs.find(s => s.id === id);
   if (!song) return;
 
-  inlineAudioUrl = URL.createObjectURL(song.blob);
-  inlineAudio = new Audio(inlineAudioUrl);
+  inlineAudio = new Audio(song.file_url);
   inlineAudio.play();
   inlinePlayingId = id;
   renderUser();
@@ -307,13 +344,29 @@ async function togglePlay(id) {
 
 async function deleteSong(id) {
   if (!confirm('Удалить эту песню?')) return;
-  if (inlinePlayingId === id) {
-    if (inlineAudio) inlineAudio.pause();
-    inlinePlayingId = null;
+  const song = db.songs.find(s => s.id === id);
+  if (!song) return;
+
+  try {
+    // Извлекаем путь из URL
+    const url = new URL(song.file_url);
+    const pathStart = url.pathname.indexOf('/songs/') + '/songs/'.length;
+    const filePath = decodeURIComponent(url.pathname.slice(pathStart));
+
+    await supabaseClient.storage.from('songs').remove([filePath]);
+    await supabaseClient.rpc('delete_song', { p_id: song.id });
+
+    if (inlinePlayingId === id) {
+      if (inlineAudio) inlineAudio.pause();
+      inlinePlayingId = null;
+    }
+
+    await loadSongsFromSupabase();
+    renderUser();
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка удаления: ' + err.message);
   }
-  await idbDelete(STORE_SONGS, id);
-  db.songs = db.songs.filter(s => s.id !== id);
-  renderUser();
 }
 
 function renderUser() {
@@ -523,7 +576,8 @@ function playSong() {
   document.getElementById('game-status').textContent = `Песня ${g.songIndex + 1} из ${round.songs.length}`;
   document.getElementById('game-audio-indicator').innerHTML = '<span>🎵 Играет трек...</span>';
 
-  playAudioBlob(song.blob);
+  // ВОСПРОИЗВОДИМ ИЗ SUPABASE URL
+  playAudioUrl(song.file_url);
 
   let sec = 10;
   const timerEl = document.getElementById('game-timer');
@@ -636,7 +690,7 @@ function playNextAnswer() {
   const song = answerRoundSongs[answerQueueIndex];
   const li = document.getElementById(`answer-item-${answerQueueIndex}`);
   
-  playAudioBlob(song.blob);
+  playAudioUrl(song.file_url);
 
   const t = setTimeout(() => {
     if (li) {
@@ -658,7 +712,7 @@ function playAnswersAudio(id) {
   clearTimeouts();
   const song = db.songs.find(s => s.id === id);
   if (song) {
-    playAudioBlob(song.blob);
+    playAudioUrl(song.file_url);
     const ind = document.getElementById('game-audio-indicator');
     if (ind) ind.classList.add('playing');
     
@@ -739,4 +793,7 @@ function closeResults() {
 }
 
 // ==================== СТАРТ ====================
-initApp().catch(err => { console.error(err); alert('Ошибка инициализации БД'); });
+initApp().catch(err => { 
+  console.error(err); 
+  alert('Ошибка инициализации. Проверьте консоль.'); 
+});
