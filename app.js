@@ -1,5 +1,5 @@
 // ==================== SUPABASE КЛИЕНТ ====================
-const SUPABASE_URL = 'https://musicquiz.supabase.co';
+const SUPABASE_URL = 'https://ajipmwgodfgnjiswhgbq.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaXBtd2dvZGZnbmppc3doZ2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ5Mjg3OTQsImV4cCI6MjExMDUwNDc5NH0.RgIG2msQVR-w5LGQFZ4BxDOuzjJoaQ3VHwF2JmEFAZQ';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
