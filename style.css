@@ -1,0 +1,141 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
+
+* { box-sizing: border-box; font-family: 'Inter', system-ui, sans-serif; }
+
+body {
+  margin: 0; padding: 0;
+  background: #d4f7ea; color: #000;
+  min-height: 100vh; overflow-x: hidden;
+}
+
+.screen { display: none; max-width: 900px; margin: 0 auto; padding: 20px; }
+.screen.active { display: block; }
+.screen.fullscreen-slide {
+  position: fixed; inset: 0; background: #d4f7ea;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 50; max-width: none; padding: 40px;
+}
+
+/* Хедер */
+.header-strip {
+  display: flex; justify-content: space-between; align-items: center;
+  background: #000; border-radius: 40px; padding: 10px 20px; margin-bottom: 30px;
+}
+.logo { color: #fff; font-weight: 900; font-size: 20px; letter-spacing: 1px; }
+.menu-btn, .btn-small {
+  background: #000; color: #fff; border: none;
+  padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer;
+}
+.topbar { display: flex; gap: 15px; align-items: center; color: #fff; font-weight: 600; }
+.topbar button { background: #333; }
+
+/* Типографика */
+.mega-title { font-size: 80px; font-weight: 900; line-height: 0.9; margin: 0; text-transform: uppercase; letter-spacing: -2px; }
+.mega-title.small { font-size: 48px; margin-top: 10px; }
+.hero { position: relative; margin-bottom: 20px; }
+.hero-small { position: relative; margin-bottom: 10px; display: flex; align-items: center; gap: 20px; }
+
+/* Полноэкранный текст с переносом слов и без обрезки */
+.fullscreen-name {
+  font-size: 15vw; /* Стартовый размер, JS будет уменьшать */
+  text-align: center; 
+  margin: 20px 0; 
+  line-height: 1.1;
+  word-break: normal; /* Разрешаем переносы между словами */
+  overflow-wrap: break-word; /* Если одно слово слишком длинное — разорвёт его */
+  white-space: normal; /* Разрешаем перенос строк */
+  width: 90%; 
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Стикеры */
+.sticker { display: inline-block; padding: 10px 20px; font-weight: 800; font-size: 18px; border: 2px solid #000; box-shadow: 3px 3px 0 #000; text-transform: uppercase; }
+.sticker-mint { background: #7af0c4; border-radius: 50px; transform: rotate(-5deg); }
+.sticker-peach { background: #ffb48f; border-radius: 20px; clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); padding: 30px; border: none; box-shadow: none; }
+.sticker-team { display: inline-block; background: #6c5ce7; color: #fff; padding: 6px 16px; border-radius: 20px; font-weight: 800; font-size: 16px; border: 2px solid #000; margin-left: 10px; }
+
+/* Волнистая линия */
+.wave-line { height: 10px; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10"><path d="M0 5 Q 5 0, 10 5 T 20 5" fill="none" stroke="black" stroke-width="2"/></svg>'); background-repeat: repeat-x; margin: 20px 0; }
+
+/* Карточки */
+.card { background: #fff; border: 2px solid #000; border-radius: 24px; padding: 24px; margin-bottom: 20px; box-shadow: 4px 4px 0 #000; }
+
+/* Формы */
+input[type="text"], input[type="password"], input[type="number"], input:not([type]) {
+  display: block; width: 100%; margin-bottom: 15px; padding: 14px 16px; border-radius: 12px;
+  border: 2px solid #000; background: #f4f4f4; font-size: 16px; font-weight: 600; outline: none;
+}
+input:focus { background: #e0e0e0; }
+
+button {
+  display: inline-block; width: 100%; padding: 14px 20px; border-radius: 12px;
+  border: 2px solid #000; background: #fff; color: #000; font-weight: 800; font-size: 16px;
+  cursor: pointer; transition: transform 0.1s, box-shadow 0.1s;
+  text-transform: uppercase; text-align: center;
+}
+button:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 4px 4px 0 #000; }
+button:active:not(:disabled) { transform: translate(0, 0); box-shadow: none; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-accent { background: #6c5ce7; color: #fff; border-color: #000; }
+.btn-outline { background: transparent; }
+.btn-small { width: auto; padding: 6px 12px; font-size: 14px; }
+
+/* Индикатор аудио */
+.audio-indicator {
+  height: 60px; background: #f4f4f4; border: 2px solid #000; border-radius: 30px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 18px; color: #000; margin-bottom: 10px; position: relative; overflow: hidden;
+}
+.audio-indicator.playing::after {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 100%;
+  background: #7af0c4; animation: pulse 1s infinite alternate; z-index: 0;
+}
+.audio-indicator span { position: relative; z-index: 1; }
+@keyframes pulse { from { opacity: 0.3; } to { opacity: 0.8; } }
+
+/* Таймер */
+.timer-bar { height: 16px; background: #e0e0e0; border: 2px solid #000; border-radius: 10px; overflow: hidden; margin: 15px 0; }
+.timer-fill { height: 100%; background: #6c5ce7; width: 100%; transition: width 1s linear; }
+
+/* Списки */
+.songs-list { list-style: none; padding: 0; margin: 0; }
+.songs-list li {
+  display: flex; justify-content: space-between; align-items: center;
+  background: #f4f4f4; border: 2px solid #000; border-radius: 12px;
+  padding: 12px; margin-bottom: 10px; font-weight: 600;
+  /* Анимация для ответов задается инлайн, базово элементы видимы */
+}
+.songs-list button { width: auto; padding: 6px 12px; font-size: 14px; margin-left: 10px; }
+
+/* Сетка игроков */
+.grid-players { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+.player-card { background: #fff; border: 2px solid #000; border-radius: 16px; padding: 15px; font-weight: 800; font-size: 18px; box-shadow: 3px 3px 0 #000; display: flex; justify-content: space-between; }
+.player-card .count { color: #6c5ce7; }
+
+/* Таблица */
+table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; border-radius: 16px; overflow: hidden; border: 2px solid #000; box-shadow: 4px 4px 0 #000; }
+th, td { padding: 16px; border-bottom: 2px solid #000; text-align: left; font-weight: 800; font-size: 20px; }
+th { background: #7af0c4; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* Лоадер */
+.loader-overlay {
+  position: fixed; inset: 0; background: rgba(212, 247, 234, 0.9);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 200;
+}
+.spinner { width: 50px; height: 50px; border: 6px solid #000; border-top-color: #6c5ce7; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Скрытие */
+.hidden { display: none !important; }
+.divider { height: 2px; background: #000; margin: 20px 0; }
+.hint { font-size: 14px; color: #555; font-weight: 600; margin: 10px 0; }
+select { width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #000; font-weight: 600; font-size: 16px; margin-bottom: 10px; background: #f4f4f4; }
+
+/* Команды в билдере */
+.team-block { background: #fff; border: 2px solid #000; border-radius: 16px; padding: 15px; margin-bottom: 15px; box-shadow: 3px 3px 0 #000; }
+.team-block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.team-block-header h3 { margin: 0; }
+.team-block-actions { display: flex; gap: 5px; }
+.team-block-actions button { padding: 4px 8px; font-size: 12px; width: auto; }

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Music Quiz</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- ГЛОБАЛЬНЫЙ ИНДИКАТОР ЗАГРУЗКИ -->
+<div id="global-loader" class="loader-overlay hidden">
+  <div class="spinner"></div>
+  <p>Идёт обработка...</p>
+</div>
+
+<!-- ЭКРАН ВХОДА -->
+<div id="screen-login" class="screen active">
+  <div class="header-strip">
+    <div class="logo">QUIZ</div>
+    <div class="menu-btn">Menu</div>
+  </div>
+  <div class="hero">
+    <h1 class="mega-title">MUSIC<br>QUIZ</h1>
+    <div class="sticker sticker-mint">+10 sec</div>
+    <div class="sticker sticker-peach">PLAY!</div>
+  </div>
+  <div class="wave-line"></div>
+
+  <div class="card login-card">
+    <h2>Вход</h2>
+    <input id="login-name" placeholder="Логин" />
+    <input id="login-pass" type="password" placeholder="Пароль" />
+    <button onclick="login()">Войти</button>
+  </div>
+
+  <div class="card login-card">
+    <h2>Регистрация</h2>
+    <input id="reg-name" placeholder="Новый логин" />
+    <input id="reg-pass" type="password" placeholder="Новый пароль" />
+    <button onclick="register()">Создать аккаунт</button>
+  </div>
+</div>
+
+<!-- ЭКРАН УЧАСТНИКА -->
+<div id="screen-user" class="screen">
+  <div class="header-strip">
+    <div class="logo">QUIZ</div>
+    <div class="topbar">
+      <span id="user-label"></span>
+      <button class="btn-small" onclick="logout()">Выйти</button>
+    </div>
+  </div>
+  <div class="hero-small">
+    <h1 class="mega-title small">YOUR<br>MUSIC</h1>
+    <div class="sticker sticker-mint">Max 5</div>
+  </div>
+  <div class="wave-line"></div>
+  <div class="card">
+    <input type="file" id="file-input" accept="audio/*" />
+    <div id="editor" class="hidden">
+      <p class="hint">Выберите 10-секундный отрезок:</p>
+      <input type="range" id="start-range" min="0" max="100" value="0" />
+      <p class="hint">Начало: <span id="start-label">0.0</span> сек</p>
+      <button onclick="previewClip()">▶ Прослушать</button>
+      <audio id="preview-audio" controls class="hidden" style="margin-top:10px;"></audio>
+      <div class="divider"></div>
+      <input id="song-title" placeholder="Название песни" />
+      <input id="song-artist" placeholder="Исполнитель" />
+      <button id="btn-save-song" onclick="saveClip()" class="btn-accent">💾 Сохранить</button>
+    </div>
+  </div>
+  <div class="hero-small">
+    <h1 class="mega-title small">MY<br>TRACKS</h1>
+  </div>
+  <div class="wave-line"></div>
+  <div class="card">
+    <h3>Загружено: <span id="my-count">0</span> / 5</h3>
+    <ul id="my-songs" class="songs-list"></ul>
+  </div>
+</div>
+
+<!-- ЭКРАН АДМИНА -->
+<div id="screen-admin" class="screen">
+  <div class="header-strip">
+    <div class="logo">HOST</div>
+    <button class="btn-small" onclick="logout()">Выйти</button>
+  </div>
+
+  <div id="admin-main">
+    <div class="hero-small">
+      <h1 class="mega-title small">PLAYERS</h1>
+      <div class="sticker sticker-peach">READY?</div>
+    </div>
+    <div class="wave-line"></div>
+    <div id="admin-users" class="grid-players"></div>
+    <div class="card admin-actions">
+      <button class="btn-accent" onclick="openTeamBuilder()">👥 Сформировать команды</button>
+      <button class="btn-accent" onclick="startGame()" id="btn-start-game">🚀 Запустить игру</button>
+    </div>
+  </div>
+
+  <!-- ФОРМИРОВАНИЕ КОМАНД -->
+  <div id="admin-teams" class="hidden">
+    <h2 class="mega-title small">TEAMS</h2>
+    <div class="wave-line"></div>
+    <div id="teams-list" class="card"></div>
+    <button class="btn-accent" onclick="addNewTeam()">+ Добавить команду</button>
+    <div class="divider"></div>
+    <button class="btn-accent" onclick="saveTeamsAdmin()">Сохранить команды</button>
+    <button class="btn-outline" onclick="closeTeamBuilder()">Отмена</button>
+  </div>
+
+  <!-- ИГРОВОЙ ЭКРАН -->
+  <div id="admin-game" class="hidden">
+    
+    <!-- Экран начала раунда (имя игрока) -->
+    <div id="game-round-start" class="hidden fullscreen-slide">
+      <p class="hint" style="text-align:center; font-size:24px;">Следующий раунд:</p>
+      <h2 id="round-start-name" class="mega-title fullscreen-name"></h2>
+      <button class="btn-accent" onclick="startRoundPlay()" style="max-width:300px; margin: 40px auto 0;">Начать раунд →</button>
+    </div>
+
+    <div id="game-play-area" class="hidden">
+      <h2 id="game-round-title" class="mega-title small"></h2>
+      <div id="game-teams-wrap" style="margin: 10px 0;"></div>
+      <div class="wave-line"></div>
+      
+      <p id="game-status" class="hint"></p>
+
+      <div id="game-song-block" class="hidden card">
+        <div id="game-audio-indicator" class="audio-indicator"><span>🎵 Играет трек...</span></div>
+        <!-- Полоска времени -->
+        <div class="timer-bar"><div class="timer-fill" id="timer-fill-1"></div></div>
+        <p id="game-timer" class="hint" style="text-align:center; font-size:20px; font-weight:800;"></p>
+      </div>
+
+      <div id="game-answers-block" class="hidden card">
+        <h3>Сдаём бланки</h3>
+        <p>Раунд завершён! Участники сдают ответы.</p>
+        <button class="btn-accent" onclick="showAnswers()">Далее (Показать ответы) →</button>
+      </div>
+
+      <div id="game-results-block" class="hidden card">
+        <h3>Ответы</h3>
+        <div id="answers-list" class="songs-list" style="margin-bottom:15px; min-height:60px;"></div>
+        <button class="btn-accent" onclick="nextRoundOrFinish()">Далее →</button>
+      </div>
+    </div>
+
+    <!-- Экран завершения игры (переход к таблице) -->
+    <div id="game-finished" class="hidden fullscreen-slide">
+      <h3 class="mega-title small">Игра окончена!</h3>
+      <div id="score-inputs" class="score-inputs" style="margin-top:20px;"></div>
+      <button class="btn-accent" onclick="showScoreboard()" style="max-width:300px; margin: 30px auto 0;">Показать результаты</button>
+    </div>
+  </div>
+</div>
+
+<!-- ПОЛНОЭКРАННЫЙ СЛАЙД С РЕЗУЛЬТАТАМИ -->
+<div id="slide-results" class="screen fullscreen-slide hidden">
+  <h2 class="mega-title small" style="text-align:center;">RESULTS</h2>
+  <div id="scoreboard" style="width:100%; max-width:600px;"></div>
+  <button class="btn-outline" onclick="closeResults()" style="max-width:200px; margin: 40px auto 0;">Закрыть</button>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
