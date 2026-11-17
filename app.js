@@ -12,15 +12,6 @@ const STORE_META = 'meta';
 let idb = null;
 let db = { songs: [], session: null, teams: {}, game: null };
 let currentUser = null;
-// ==================== INDEXEDDB ОБЁРТКА ====================
-const DB_NAME = 'music_quiz_idb';
-const DB_VERSION = 1;
-const STORE_SONGS = 'songs';
-const STORE_META = 'meta';
-
-let idb = null;
-let db = { songs: [], session: null, teams: {}, game: null };
-let currentUser = null;
 
 function openIDB() {
   return new Promise((resolve, reject) => {
