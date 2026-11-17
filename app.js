@@ -1,9 +1,9 @@
 // ==================== SUPABASE КЛИЕНТ ====================
 const SUPABASE_URL = 'https://musicquiz.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqaXBtd2dvZGZnbmppc3doZ2JxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ5Mjg3OTQsImV4cCI6MjExMDUwNDc5NH0.RgIG2msQVR-w5LGQFZ4BxDOuzjJoaQ3VHwF2JmEFAZQ';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ==================== ЛОКАЛЬНЫЕ ДАННЫЕ (пока песни и игра) ====================
+// ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
 const DB_NAME = 'music_quiz_idb';
 const DB_VERSION = 1;
 const STORE_SONGS = 'songs';
@@ -13,6 +13,7 @@ let idb = null;
 let db = { songs: [], session: null, teams: {}, game: null };
 let currentUser = null;
 
+// ==================== INDEXEDDB ОБЁРТКА ====================
 function openIDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
@@ -75,18 +76,50 @@ function route() {
   else { showScreen('screen-user'); renderUser(); }
 }
 
+async function login() {
+  const loginValue = document.getElementById('login-name').value.trim();
+  const pass = document.getElementById('login-pass').value;
+
+  if (!loginValue || !pass) return alert('Введите логин и пароль');
+
+  document.getElementById('global-loader').classList.remove('hidden');
+
+  try {
+    const { data, error } = await supabaseClient.rpc('login_user', {
+      p_login: loginValue,
+      p_password: pass
+    });
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      alert('Неверный логин или пароль');
+      return;
+    }
+
+    currentUser = { name: data[0].login, role: data[0].role };
+    await saveSession();
+    route();
+  } catch (err) {
+    console.error(err);
+    alert('Ошибка входа: ' + err.message);
+  } finally {
+    document.getElementById('global-loader').classList.add('hidden');
+  }
+}
+
 async function register() {
-  const login = document.getElementById('reg-name').value.trim();
+  const loginValue = document.getElementById('reg-name').value.trim();
   const pass = document.getElementById('reg-pass').value;
 
-  if (!login || !pass) return alert('Заполните оба поля');
+  if (!loginValue || !pass) return alert('Заполните оба поля');
   if (pass.length < 3) return alert('Пароль должен быть не менее 3 символов');
 
   document.getElementById('global-loader').classList.remove('hidden');
 
   try {
-    const { error } = await supabase.rpc('register_user', {
-      p_login: login,
+    const { error } = await supabaseClient.rpc('register_user', {
+      p_login: loginValue,
       p_password: pass
     });
 
@@ -103,39 +136,10 @@ async function register() {
   }
 }
 
-async function login() {
-  const login = document.getElementById('login-name').value.trim();
-  const pass = document.getElementById('login-pass').value;
-
-  if (!login || !pass) return alert('Введите логин и пароль');
-
-  // Показываем лоадер
-  document.getElementById('global-loader').classList.remove('hidden');
-
-  try {
-    // Вызываем SQL-функцию login_user
-    const { data, error } = await supabase.rpc('login_user', {
-      p_login: login,
-      p_password: pass
-    });
-
-    if (error) throw error;
-
-    if (!data || data.length === 0) {
-      alert('Неверный логин или пароль');
-      return;
-    }
-
-    // data[0] = { login, role }
-    currentUser = { name: data[0].login, role: data[0].role };
-    await saveSession();
-    route();
-  } catch (err) {
-    console.error(err);
-    alert('Ошибка входа: ' + err.message);
-  } finally {
-    document.getElementById('global-loader').classList.add('hidden');
-  }
+async function logout() {
+  currentUser = null;
+  await saveSession();
+  route();
 }
 
 // ==================== ОБРЕЗКА И СОХРАНЕНИЕ ====================
@@ -341,7 +345,7 @@ function renderAdmin() {
   document.getElementById('admin-game').classList.add('hidden');
 }
 
-let tempTeams = {}; // { "TeamName": ["Player1", "Player2"] }
+let tempTeams = {};
 
 function openTeamBuilder() {
   document.getElementById('admin-main').classList.add('hidden');
