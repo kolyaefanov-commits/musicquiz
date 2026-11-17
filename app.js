@@ -336,7 +336,7 @@ async function togglePlay(id) {
     inlineAudio.currentTime = 0;
   }
 
-  const song = db.songs.find(s => s.id === id);
+  const song = db.songs.find(s => String(s.id) === String(id));
   if (!song) {
     console.log("4. ОШИБКА: Песня с таким ID не найдена в массиве db.songs!");
     return;
