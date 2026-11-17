@@ -320,44 +320,49 @@ let inlineAudio = null;
 let inlinePlayingId = null;
 
 async function togglePlay(id) {
-  console.log("Кнопка нажата! ID песни:", id);
-  // Если нажали на ту же песню — пауза
+  console.log("1. Кнопка нажата. ID:", id);
+  
   if (inlinePlayingId === id) {
+    console.log("2. Это та же песня, ставим на паузу.");
     if (inlineAudio) inlineAudio.pause();
     inlinePlayingId = null;
-    renderUser(); // Обновляем иконку на ▶
+    renderUser();
     return;
   }
   
-  // Если играет другая — остановить её
   if (inlineAudio) {
+    console.log("3. Останавливаем предыдущую песню.");
     inlineAudio.pause();
     inlineAudio.currentTime = 0;
   }
 
   const song = db.songs.find(s => s.id === id);
-  if (!song) return;
-
-  // Создаем плеер
-  inlineAudio = new Audio(song.file_url);
+  if (!song) {
+    console.log("4. ОШИБКА: Песня с таким ID не найдена в массиве db.songs!");
+    return;
+  }
   
-  // Сначала обновляем интерфейс (рисуем ⏸)
+  console.log("5. Найдена песня. Название:", song.title);
+  console.log("6. Ссылка на файл:", song.file_url);
+
+  inlineAudio = new Audio(song.file_url);
   inlinePlayingId = id;
   renderUser();
 
-  // А потом пытаемся включить
   try {
+    console.log("7. Пытаемся включить...");
     await inlineAudio.play();
+    console.log("8. УСПЕХ! Звук должен идти.");
   } catch (err) {
-    console.error("Ошибка воспроизведения:", err);
-    alert("Не удалось включить песню. Возможно, браузер блокирует звук.");
+    console.error("9. ОШИБКА ВОСПРОИЗВЕДЕНИЯ:", err);
+    alert("Браузер не смог воспроизвести файл. Ошибка: " + err.message);
     inlinePlayingId = null;
     renderUser();
     return;
   }
 
-  // Когда песня закончится, вернем иконку ▶
   inlineAudio.onended = () => {
+    console.log("10. Песня закончилась.");
     inlinePlayingId = null;
     inlineAudio = null;
     renderUser();
