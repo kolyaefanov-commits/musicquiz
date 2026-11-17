@@ -320,21 +320,30 @@ let inlineAudio = null;
 let inlinePlayingId = null;
 
 async function togglePlay(id) {
+  // Если нажали на уже играющую песню — ставим на паузу
   if (inlinePlayingId === id) {
     if (inlineAudio) inlineAudio.pause();
     inlinePlayingId = null;
     renderUser();
     return;
   }
+  
+  // Останавливаем предыдущую, если играла
   if (inlineAudio) inlineAudio.pause();
 
   const song = db.songs.find(s => s.id === id);
   if (!song) return;
 
+  // ВАЖНО: используем file_url вместо blob
   inlineAudio = new Audio(song.file_url);
-  inlineAudio.play();
-  inlinePlayingId = id;
-  renderUser();
+  
+  inlineAudio.play().then(() => {
+    inlinePlayingId = id;
+    renderUser();
+  }).catch(err => {
+    console.error("Ошибка воспроизведения:", err);
+    alert("Не удалось включить песню");
+  });
 
   inlineAudio.onended = () => {
     inlinePlayingId = null;
