@@ -320,33 +320,45 @@ let inlineAudio = null;
 let inlinePlayingId = null;
 
 async function togglePlay(id) {
-  // Если нажали на уже играющую песню — ставим на паузу
+  // Если нажали на ту же песню — пауза
   if (inlinePlayingId === id) {
     if (inlineAudio) inlineAudio.pause();
     inlinePlayingId = null;
-    renderUser();
+    renderUser(); // Обновляем иконку на ▶
     return;
   }
   
-  // Останавливаем предыдущую, если играла
-  if (inlineAudio) inlineAudio.pause();
+  // Если играет другая — остановить её
+  if (inlineAudio) {
+    inlineAudio.pause();
+    inlineAudio.currentTime = 0;
+  }
 
   const song = db.songs.find(s => s.id === id);
   if (!song) return;
 
-  // ВАЖНО: используем file_url вместо blob
+  // Создаем плеер
   inlineAudio = new Audio(song.file_url);
   
-  inlineAudio.play().then(() => {
-    inlinePlayingId = id;
-    renderUser();
-  }).catch(err => {
-    console.error("Ошибка воспроизведения:", err);
-    alert("Не удалось включить песню");
-  });
+  // Сначала обновляем интерфейс (рисуем ⏸)
+  inlinePlayingId = id;
+  renderUser();
 
+  // А потом пытаемся включить
+  try {
+    await inlineAudio.play();
+  } catch (err) {
+    console.error("Ошибка воспроизведения:", err);
+    alert("Не удалось включить песню. Возможно, браузер блокирует звук.");
+    inlinePlayingId = null;
+    renderUser();
+    return;
+  }
+
+  // Когда песня закончится, вернем иконку ▶
   inlineAudio.onended = () => {
     inlinePlayingId = null;
+    inlineAudio = null;
     renderUser();
   };
 }
