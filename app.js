@@ -320,6 +320,7 @@ let inlineAudio = null;
 let inlinePlayingId = null;
 
 async function togglePlay(id) {
+  console.log("Кнопка нажата! ID песни:", id);
   // Если нажали на ту же песню — пауза
   if (inlinePlayingId === id) {
     if (inlineAudio) inlineAudio.pause();
