@@ -371,28 +371,52 @@ async function togglePlay(id) {
 
 async function deleteSong(id) {
   if (!confirm('Удалить эту песню?')) return;
-  const song = db.songs.find(s => s.id === id);
-  if (!song) return;
+  const song = db.songs.find(s => String(s.id) === String(id));
+  if (!song) return alert('Песня не найдена');
+
+  // Останавливаем воспроизведение, если играет эта песня
+  if (inlinePlayingId === id) {
+    if (inlineAudio) inlineAudio.pause();
+    inlinePlayingId = null;
+  }
+
+  // Показываем загрузку
+  document.getElementById('global-loader').classList.remove('hidden');
 
   try {
-    // Извлекаем путь из URL
-    const url = new URL(song.file_url);
-    const pathStart = url.pathname.indexOf('/songs/') + '/songs/'.length;
-    const filePath = decodeURIComponent(url.pathname.slice(pathStart));
-
-    await supabaseClient.storage.from('songs').remove([filePath]);
-    await supabaseClient.rpc('delete_song', { p_id: song.id });
-
-    if (inlinePlayingId === id) {
-      if (inlineAudio) inlineAudio.pause();
-      inlinePlayingId = null;
+    // 1. Извлекаем имя файла из URL более надежным способом
+    // Ссылка выглядит так: .../songs/________1794935400893.webm
+    const urlParts = song.file_url.split('/');
+    const fileName = urlParts[urlParts.length - 1]; 
+    
+    // 2. Удаляем файл из Storage (не прерываем выполнение, если файла нет)
+    if (fileName) {
+      const { error: storageError } = await supabaseClient.storage
+        .from('songs')
+        .remove([fileName]);
+      
+      if (storageError) {
+        console.warn("Не удалось удалить файл из Storage:", storageError);
+      }
     }
 
+    // 3. Удаляем запись из таблицы базы данных
+    const { error: dbError } = await supabaseClient
+      .from('songs')
+      .delete()
+      .eq('id', song.id);
+
+    if (dbError) throw dbError;
+
+    // 4. Обновляем список и интерфейс
     await loadSongsFromSupabase();
     renderUser();
+    
   } catch (err) {
-    console.error(err);
+    console.error("Ошибка при удалении:", err);
     alert('Ошибка удаления: ' + err.message);
+  } finally {
+    document.getElementById('global-loader').classList.add('hidden');
   }
 }
 
